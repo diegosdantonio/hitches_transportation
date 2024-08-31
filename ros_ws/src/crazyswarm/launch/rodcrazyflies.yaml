@@ -1,0 +1,15 @@
+crazyflies:
+- channel: 90
+  id: 5
+  initialPosition: 
+    - 3.0
+    - -0.6
+    - 0.0
+  type: rodcfbolt
+- channel: 100
+  id: 6
+  initialPosition:
+    - 3.0 
+    - 0.6
+    - 0.0
+  type: rodcfbolt

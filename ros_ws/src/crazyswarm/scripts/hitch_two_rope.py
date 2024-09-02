@@ -24,13 +24,13 @@ object_rotations = {}
 
 global object_pt
 
-desireLayer = 2
+desireLayer = 3
 
-ropeLength = 3.60
+ropeLength = 3.65
 Rotation_num = 1
 ellipsoid_radii = [0.12, 0.12, 0.12]
-duration_per_layer = 40  # Duration for each layer in seconds
-initial_position_duration = 10  # Duration to move to initial positions
+duration_per_layer = 30  # Duration for each layer in seconds
+initial_position_duration = 6  # Duration to move to initial positions
 
 '''
     movement function:
@@ -144,21 +144,22 @@ def get_object_position(id):
     rotation = object_rotations.get(id)
     return position, rotation
 
+def move_away_from_object_duration(swarm, allcfs, current_positions, object_pt, duration, timeHelper):
+    start_time = timeHelper.time()
+    while timeHelper.time() - start_time < duration:
+        displacement_vectors = [
+            (pos - object_pt) / np.linalg.norm(pos - object_pt) * 0.02  # Small constant displacement per iteration
+            for pos in current_positions
+        ]
+        away_positions = [
+            current_positions[i] + displacement_vectors[i]
+            for i in range(len(current_positions))
+        ]
 
-def move_away_from_object(swarm, allcfs, current_positions, object_pt, displacement_distance, timeHelper):
+        move_smoothly_simultaneously(swarm, allcfs, current_positions, away_positions, 0.1, timeHelper, object_pt)
+        current_positions = away_positions  # Update current positions for continuous movement
 
-    displacement_vectors = [
-        (pos - object_pt) / np.linalg.norm(pos - object_pt) * displacement_distance
-        for pos in current_positions
-    ]
-    away_positions = [
-        current_positions[i] + displacement_vectors[i] 
-        for i in range(len(current_positions))
-    ]
-    
-    move_smoothly_simultaneously(swarm, allcfs, current_positions, away_positions, 1.5, timeHelper, object_pt)
-    return away_positions  # Return the new positions after moving away.
-
+        timeHelper.sleep(0.1)  # Delay to allow for real-time control and to not overwhelm the communication with drones
 
 def calculate_rope_length(layer, allcfs, object_pt, radius):
     """
@@ -247,6 +248,9 @@ def square_and_lift(swarm, allcfs, current_positions, object_pt, initial_radius,
     allcfs.land(targetHeight=0.01, duration=10)
     timeHelper.sleep(10)
 
+def unit_vector(from_pt, to_pt):
+    return (to_pt - from_pt) / np.linalg.norm(to_pt - from_pt)
+
 
 
 def main():
@@ -265,8 +269,9 @@ def main():
     target_object_id = 530  # ID of the object you want to track
     landing_pad_id = 527
     hight_decrease = 0.03 # Value ecrease after first layer
-    normal_shift = 0.42 # Value shifter for slack
-    shrink_distance = 0.00  # distance shrink during the rotation for cicular trajctory within layers
+    normal_shift = 0.45 # Value shifter for slack
+    expand_distance = -0.13  # Define a positive distance to expand away from the central point
+
     object_r = 0.15
     flag = 0
 
@@ -358,16 +363,20 @@ def main():
 
 
         # Move Crazyflies to initial positions smoothly and simultaneously
-        start_positions = [cf.position() for cf in allcfs.crazyflies]
+        start_positions = [np.array(cf.position()) for cf in allcfs.crazyflies]
         end_positions = [init1, init2, init3, init4]
         if currentLayer == 1:
-            end_positions = [ start1, start2, start3, start4]
-        move_circularly(swarm, allcfs, start_positions, end_positions, initial_position_duration, timeHelper, object_pt)
+            end_positions = [start1, start2, start3, start4]
+
+        move_smoothly_simultaneously(swarm, allcfs, start_positions, end_positions, 1, timeHelper, object_pt)
         start_positions = end_positions  # Update start positions after reaching initial positions
-        print("reach initial position")
+        print("Reached initial position")
 
+        # New: Move away from the center for 3 seconds after reaching initial positions
+        move_away_from_object_duration(swarm, allcfs, start_positions, object_pt, 3, timeHelper)
+        start_positions = [np.array(cf.position()) for cf in allcfs.crazyflies]  # Update start positions after moving away
+        print("New start positions recorded after moving away.")
         layer_start_time = timeHelper.time()
-
 
         # Perform the trajectory for the current layer
         init1_rep = init1
@@ -406,36 +415,36 @@ def main():
                 if flag == 1:
                     print("L1H2")
                     flag = 2
-                dump, r2_pos = CT.trajz_to_t(t, init1, init2, 1, -22)
-                dump, r1_pos = CT.trajz_to_t(t, init2, init1, -1, 22)
-                dump, r4_pos = CT.trajz_to_t(t, init3, init4, -1, 22)
-                dump, r3_pos = CT.trajz_to_t(t, init4, init3, 1, -22)
+                dump, r2_pos = CT.trajz_to_t(t, init1, init2, 1, -25)
+                dump, r1_pos = CT.trajz_to_t(t, init2, init1, -1, 25)
+                dump, r4_pos = CT.trajz_to_t(t, init3, init4, -1, 25)
+                dump, r3_pos = CT.trajz_to_t(t, init4, init3, 1, -25)
 
 
             elif currentLayer % 2 == 1:
-                r1_pos, r2_pos = CT.trajz_to_t(t, init1_rep, init2_rep, 1, -22)
-                r3_pos, r4_pos = CT.trajz_to_t(t, init3_rep, init4_rep, -1, 22)
+                r1_pos, r2_pos = CT.trajz_to_t(t, init1_rep, init2_rep, 1, -25)
+                r3_pos, r4_pos = CT.trajz_to_t(t, init3_rep, init4_rep, -1, 25)
                 unit_vector_init1_to_pt1 = (pt1 - init1) / np.linalg.norm(pt1 - init1)
                 unit_vector_init2_to_pt1 = (pt1 - init2) / np.linalg.norm(pt1 - init2)
                 unit_vector_init3_to_pt2 = (pt2 - init3) / np.linalg.norm(pt2 - init3)
                 unit_vector_init4_to_pt2 = (pt2 - init4) / np.linalg.norm(pt2 - init4)
 
-                init1_rep = init1_rep + unit_vector_init1_to_pt1 * shrink_distance
-                init2_rep = init2_rep + unit_vector_init2_to_pt1 * shrink_distance
-                init3_rep  = init3_rep + unit_vector_init3_to_pt2 * shrink_distance
-                init4_rep  = init4_rep + unit_vector_init4_to_pt2 * shrink_distance
+                init1_rep = init1_rep + unit_vector_init1_to_pt1 * expand_distance
+                init2_rep = init2_rep + unit_vector_init2_to_pt1 * expand_distance
+                init3_rep  = init3_rep + unit_vector_init3_to_pt2 * expand_distance
+                init4_rep  = init4_rep + unit_vector_init4_to_pt2 * expand_distance
             else:
-                r1_pos, r3_pos = CT.trajz_to_t(t, init1_rep, init3_rep, 1, 22)
-                r2_pos, r4_pos = CT.trajz_to_t(t, init2_rep, init4_rep, -1, -22)
+                r1_pos, r3_pos = CT.trajz_to_t(t, init1_rep, init3_rep, 1, 25)
+                r2_pos, r4_pos = CT.trajz_to_t(t, init2_rep, init4_rep, -1, -25)
                 unit_vector_init1_to_pt1 = (pt1 - init1) / np.linalg.norm(pt1 - init1)
                 unit_vector_init3_to_pt1 = (pt1 - init3) / np.linalg.norm(pt1 - init3)
                 unit_vector_init2_to_pt2 = (pt2 - init2) / np.linalg.norm(pt2 - init2)
                 unit_vector_init4_to_pt2 = (pt2 - init4) / np.linalg.norm(pt2 - init4)
                 
-                init1_rep  = init1_rep + unit_vector_init1_to_pt1 * shrink_distance
-                init2_rep  = init2_rep + unit_vector_init2_to_pt2 * shrink_distance
-                init3_rep  = init3_rep + unit_vector_init3_to_pt1 * shrink_distance
-                init4_rep  = init4_rep + unit_vector_init4_to_pt2 * shrink_distance
+                init1_rep  = init1_rep + unit_vector_init1_to_pt1 * expand_distance
+                init2_rep  = init2_rep + unit_vector_init2_to_pt2 * expand_distance
+                init3_rep  = init3_rep + unit_vector_init3_to_pt1 * expand_distance
+                init4_rep  = init4_rep + unit_vector_init4_to_pt2 * expand_distance
 
             new_positions = [r1_pos, r2_pos, r3_pos, r4_pos]
             move_smoothly_simultaneously(swarm, allcfs, start_positions, new_positions, 1, timeHelper, object_pt)
@@ -446,8 +455,10 @@ def main():
                 current_positions = [np.array(cf.position()) for cf in allcfs.crazyflies]
                 
                 print("moveaway")
-                i = move_away_from_object(swarm, allcfs, current_positions, object_pt, 0.05, timeHelper)
+                # Call the new function that moves away from the object for a specified duration
+                move_away_from_object_duration(swarm, allcfs, current_positions, object_pt, 3, timeHelper)  # Adjust duration as needed
                 break
+
 
             #decrease init
 
@@ -496,7 +507,7 @@ def main():
                 end_positions.append(np.array([new_x, new_y, new_z]))
 
             # Move the Crazyflies to their new positions
-            move_smoothly_simultaneously(swarm, allcfs, current_positions, end_positions, 10, timeHelper, object_pt)
+            move_smoothly_simultaneously(swarm, allcfs, current_positions, end_positions, 5, timeHelper, object_pt)
 
             liftupHeight = 1.7  # Set desired lift up height if lifting after reaching positions
             lifted_positions = []
@@ -513,14 +524,17 @@ def main():
                 lifted_positions.append(np.array([final_x, final_y, final_z]))
 
             # Move to lifted positions
-            move_smoothly_simultaneously(swarm, allcfs, end_positions, lifted_positions, 20, timeHelper, object_pt)
+            print("lifting")
+            move_smoothly_simultaneously(swarm, allcfs, end_positions, lifted_positions, 15, timeHelper, object_pt)
             
             current_positions = [np.array(cf.position()) for cf in allcfs.crazyflies]
 
             # Move to directly above the landing pad
+            print("move")
             new_positions = transition_to_above_landing_position(swarm, allcfs, current_positions, object_pt, land_position, timeHelper)
 
             # Adjust altitude and initiate landing
+            print("land")
             adjust_altitude_and_land(swarm, allcfs, new_positions, land_position, timeHelper)
 
             print("landing completed.")
@@ -536,7 +550,7 @@ def main():
 
 
         currentLayer += 1
-        currentRopeLength = calculate_rope_length(currentLayer, allcfs, object_pt, object_r) + 0.12
+        currentRopeLength = calculate_rope_length(currentLayer, allcfs, object_pt, object_r) + 0.10
 
         print(f"current ropelength: {currentRopeLength}")
 

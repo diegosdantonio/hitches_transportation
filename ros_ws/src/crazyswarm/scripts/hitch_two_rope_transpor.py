@@ -271,7 +271,7 @@ def main():
     landing_pad_id = 527
     hight_decrease = 0.01 # Value ecrease after first layer
     normal_shift = 0.45 # Value shifter for slack
-    expand_distance = -0.02  # Define a positive distance to expand away from the central point
+    expand_distance = -0.05  # Define a positive distance to expand away from the central point
 
     object_r = 0.15
     flag = 0

@@ -45,7 +45,7 @@ def increment_number_in_file(filename, clear=False):
     
     return number
 
-REUSE_WEIGHT = True
+REUSE_WEIGHT = False
 file_identifier = "PID" if not force_estimation else "RLS_{}".format("ralpha" if bendable_feature else "xy")
 record_file = "training_iteration.txt"
 if REUSE_WEIGHT:
@@ -76,14 +76,14 @@ def get_trajectory_waypoint1(t):
     R = 0.2     # length variation in xy-plane
     R_c = 0.4    # center of variation
     omega = 0.4*np.pi  # Frequency of length variation
-    A = 0.00      # Amplitude of z oscillation 1
+    A = 0.05      # Amplitude of z oscillation 1
     kappa = 1.1  # Frequency of z oscillation 1
     rho = 0.8    # Frequency of z oscillation 2
     B = 0.0     # Rate of linear ascent in z-direction 
-    C = -0.0     # Linear Translation rate in x
+    C = -0.05     # Linear Translation rate in x
     y_offset = 0.0
 
-    x = 3.2
+    x = 2.0
     dot_x = 0.0
     y = R * np.cos(omega * t) + R_c
     dot_y = -omega*R*np.sin(omega*t)
@@ -603,7 +603,7 @@ def get_trajectory_waypoint4(t):
     else:
         return None
 
-trajectory = get_trajectory_waypoint4  # select trajectory
+trajectory = get_trajectory_waypoint1  # select trajectory
 if trajectory is get_trajectory_waypoint3:
     ENV_OFFSET = 1.1
     start_x, start_z, end_x, end_z = 0.0, 0.0, 0.0, 0.0

@@ -2,9 +2,9 @@
 import numpy as np
 from pycrazyswarm import *
 
-INITIAL_HEIGHT = 1.0  # Initial takeoff height
+INITIAL_HEIGHT = 1.5  # Initial takeoff height
 FINAL_HEIGHT = 0.5    # Final height after lifting up
-TAKEOFF_DURATION = 8.0
+TAKEOFF_DURATION = 12.0
 LIFT_DURATION = 10.0
 
 if __name__ == "__main__":
@@ -29,5 +29,5 @@ if __name__ == "__main__":
         print("waiting button")
 
     # Land
-    allcfs.land(targetHeight=0.01, duration=1.0 + FINAL_HEIGHT)
-    timeHelper.sleep(1.0 + FINAL_HEIGHT)
+    allcfs.land(targetHeight=0.01, duration=10)
+    timeHelper.sleep(10)

@@ -107,7 +107,7 @@ def transition_to_above_landing_position(swarm, allcfs, current_positions, objec
     new_positions = [pos + movement_vector for pos in current_positions]
 
     # Move drones to the new positions
-    move_smoothly_simultaneously(swarm, allcfs, current_positions, new_positions, 3, timeHelper, target_position)
+    move_smoothly_simultaneously(swarm, allcfs, current_positions, new_positions, 4, timeHelper, target_position)
     return new_positions
 
 def adjust_altitude_and_land(swarm, allcfs, current_positions, land_position, timeHelper):
@@ -270,7 +270,7 @@ def main():
     target_object_id = 530  # ID of the object you want to track
     landing_pad_id = 527
     hight_decrease = 0.01 # Value ecrease after first layer
-    normal_shift = 0.47 # Value shifter for slack
+    normal_shift = 0.45 # Value shifter for slack
     expand_distance = -0.02  # Define a positive distance to expand away from the central point
 
     object_r = 0.15
@@ -411,23 +411,23 @@ def main():
                 if flag == 0:
                     print("L1H1")
                     flag = 1
-                r1_pos, dump = CT.trajz_to_t(t, start1, init2, 1 ,25)
-                r2_pos, dump = CT.trajz_to_t(t, start2, init1, -1, 25)
-                r3_pos, dump = CT.trajz_to_t(t, start3, init4, 1, 25)
-                r4_pos, dump = CT.trajz_to_t(t, start4, init3, -1, 25)
+                r1_pos, dump = CT.trajz_to_t(t, start1, init2, 1 ,0)
+                r2_pos, dump = CT.trajz_to_t(t, start2, init1, -1, 0)
+                r3_pos, dump = CT.trajz_to_t(t, start3, init4, -1, 0)
+                r4_pos, dump = CT.trajz_to_t(t, start4, init3, 1, 0)
             elif currentLayer == 1 and current_time >= duration_per_layer/2:
                 if flag == 1:
                     print("L1H2")
                     flag = 2
-                dump, r2_pos = CT.trajz_to_t(t, init1, init2, 1, -25)
-                dump, r1_pos = CT.trajz_to_t(t, init2, init1, -1, 25)
-                dump, r4_pos = CT.trajz_to_t(t, init3, init4, 1, 25)
-                dump, r3_pos = CT.trajz_to_t(t, init4, init3, -1, -25)
+                dump, r2_pos = CT.trajz_to_t(t, init1, init2, 1, -20)
+                dump, r1_pos = CT.trajz_to_t(t, init2, init1, -1, 20)
+                dump, r4_pos = CT.trajz_to_t(t, init3, init4, -1, 20)
+                dump, r3_pos = CT.trajz_to_t(t, init4, init3, 1, -20)
 
 
             elif currentLayer % 2 == 1:
-                r1_pos, r2_pos = CT.trajz_to_t(t, init1_rep, init2_rep, 1, -25)
-                r3_pos, r4_pos = CT.trajz_to_t(t, init3_rep, init4_rep, 1, 25)
+                r1_pos, r2_pos = CT.trajz_to_t(t, init1_rep, init2_rep, 1, -20)
+                r3_pos, r4_pos = CT.trajz_to_t(t, init3_rep, init4_rep, -1, 20)
                 unit_vector_init1_to_pt1 = (pt1 - init1) / np.linalg.norm(pt1 - init1)
                 unit_vector_init2_to_pt1 = (pt1 - init2) / np.linalg.norm(pt1 - init2)
                 unit_vector_init3_to_pt2 = (pt2 - init3) / np.linalg.norm(pt2 - init3)
@@ -438,8 +438,8 @@ def main():
                 init3_rep  = init3_rep + unit_vector_init3_to_pt2 * expand_distance
                 init4_rep  = init4_rep + unit_vector_init4_to_pt2 * expand_distance
             else:
-                r1_pos, r3_pos = CT.trajz_to_t(t, init1_rep, init3_rep, 1, 25)
-                r2_pos, r4_pos = CT.trajz_to_t(t, init2_rep, init4_rep, 1, -25)
+                r1_pos, r3_pos = CT.trajz_to_t(t, init1_rep, init3_rep, 1, 20)
+                r2_pos, r4_pos = CT.trajz_to_t(t, init2_rep, init4_rep, -1, -20)
                 unit_vector_init1_to_pt1 = (pt1 - init1) / np.linalg.norm(pt1 - init1)
                 unit_vector_init3_to_pt1 = (pt1 - init3) / np.linalg.norm(pt1 - init3)
                 unit_vector_init2_to_pt2 = (pt2 - init2) / np.linalg.norm(pt2 - init2)

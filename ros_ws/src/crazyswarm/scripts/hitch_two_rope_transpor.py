@@ -543,7 +543,9 @@ def main():
             print("lifting")    
             move_smoothly_simultaneously(swarm, allcfs, end_positions, lifted_positions, 2, timeHelper, object_pt)
             print("complete lifting")
-            
+            position, rotation = get_object_position(target_object_id)
+            if position is not None:
+                object_pt = position  # Update object_pt with the new position from OptiTrack
             current_positions = [np.array(cf.position()) for cf in allcfs.crazyflies]
 
             # Move to directly above the landing pad

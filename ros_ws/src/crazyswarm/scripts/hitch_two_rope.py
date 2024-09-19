@@ -24,7 +24,7 @@ object_rotations = {}
 
 global object_pt
 
-desireLayer = 3
+desireLayer = 1
 
 ropeLength = 3.6
 Rotation_num = 1
@@ -107,7 +107,7 @@ def transition_to_above_landing_position(swarm, allcfs, current_positions, objec
     new_positions = [pos + movement_vector for pos in current_positions]
 
     # Move drones to the new positions
-    move_smoothly_simultaneously(swarm, allcfs, current_positions, new_positions, 3, timeHelper, target_position)
+    move_smoothly_simultaneously(swarm, allcfs, current_positions, new_positions, 4, timeHelper, target_position)
     return new_positions
 
 def adjust_altitude_and_land(swarm, allcfs, current_positions, land_position, timeHelper):
@@ -252,7 +252,53 @@ def calculate_rope_length(layer, allcfs, object_pt, radius):
 def unit_vector(from_pt, to_pt):
     return (to_pt - from_pt) / np.linalg.norm(to_pt - from_pt)
 
-
+def swap_drones_counterclockwise(drone1, drone2, timeHelper, swap_time):
+    """
+    Function to swap two drones along a counterclockwise circular path, 
+    using the midpoint between the drones as the center of the circle.
+    
+    Args:
+    drone1: The position of the first drone (numpy array).
+    drone2: The position of the second drone (numpy array).
+    timeHelper: Object to manage time for smooth movements.
+    swap_time: The total time taken to swap the drones.
+    
+    Returns:
+    None
+    """
+    
+    # Calculate the midpoint between the two drones (center of the circle)
+    midpoint = (drone1 + drone2) / 2
+    
+    # Calculate the vector from the midpoint to each drone
+    vector1 = drone1 - midpoint
+    vector2 = drone2 - midpoint
+    
+    # Calculate the rotation angle (180 degrees in radians for counterclockwise rotation)
+    theta = np.pi  # 180 degrees in radians
+    
+    # Normalize vectors
+    vector1_norm = vector1 / np.linalg.norm(vector1)
+    vector2_norm = vector2 / np.linalg.norm(vector2)
+    
+    # Create rotation matrix for counterclockwise rotation using Rodrigues' formula
+    R = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+    
+    # Apply the rotation to each drone's vector
+    new_vector1 = np.dot(R, vector1_norm)
+    new_vector2 = np.dot(R, vector2_norm)
+    
+    # Calculate the new positions of the drones after rotation
+    new_drone1_position = midpoint + new_vector1 * np.linalg.norm(vector1)
+    new_drone2_position = midpoint + new_vector2 * np.linalg.norm(vector2)
+    
+    # Command the drones to move to the new positions smoothly
+    print(f"Swapping drones in a counterclockwise path.")
+    drone1.cmdPosition(new_drone1_position)
+    drone2.cmdPosition(new_drone2_position)
+    
+    # Wait for the swap to complete
+    timeHelper.sleep(swap_time)
 
 def main():
     setup_optitrack_client()  # Start the client to begin receiving data
@@ -270,8 +316,8 @@ def main():
     target_object_id = 530  # ID of the object you want to track
     landing_pad_id = 527
     hight_decrease = 0.01 # Value ecrease after first layer
-    normal_shift = 0.47 # Value shifter for slack
-    expand_distance = -0.02  # Define a positive distance to expand away from the central point
+    normal_shift = 0.45 # Value shifter for slack
+    expand_distance = -0.05  # Define a positive distance to expand away from the central point
 
     object_r = 0.15
     flag = 0
@@ -411,23 +457,23 @@ def main():
                 if flag == 0:
                     print("L1H1")
                     flag = 1
-                r1_pos, dump = CT.trajz_to_t(t, start1, init2, 1 ,25)
-                r2_pos, dump = CT.trajz_to_t(t, start2, init1, -1, 25)
-                r3_pos, dump = CT.trajz_to_t(t, start3, init4, 1, 25)
-                r4_pos, dump = CT.trajz_to_t(t, start4, init3, -1, 25)
+                r1_pos, dump = CT.trajz_to_t(t, start1, init2, 1 ,0)
+                r2_pos, dump = CT.trajz_to_t(t, start2, init1, -1, 0)
+                r3_pos, dump = CT.trajz_to_t(t, start3, init4, -1, 0)
+                r4_pos, dump = CT.trajz_to_t(t, start4, init3, 1, 0)
             elif currentLayer == 1 and current_time >= duration_per_layer/2:
                 if flag == 1:
                     print("L1H2")
                     flag = 2
-                dump, r2_pos = CT.trajz_to_t(t, init1, init2, 1, -25)
-                dump, r1_pos = CT.trajz_to_t(t, init2, init1, -1, 25)
-                dump, r4_pos = CT.trajz_to_t(t, init3, init4, 1, 25)
-                dump, r3_pos = CT.trajz_to_t(t, init4, init3, -1, -25)
+                dump, r2_pos = CT.trajz_to_t(t, init1, init2, 1, -20)
+                dump, r1_pos = CT.trajz_to_t(t, init2, init1, -1, 20)
+                dump, r4_pos = CT.trajz_to_t(t, init3, init4, -1, 20)
+                dump, r3_pos = CT.trajz_to_t(t, init4, init3, 1, -20)
 
 
             elif currentLayer % 2 == 1:
-                r1_pos, r2_pos = CT.trajz_to_t(t, init1_rep, init2_rep, 1, -25)
-                r3_pos, r4_pos = CT.trajz_to_t(t, init3_rep, init4_rep, 1, 25)
+                r1_pos, r2_pos = CT.trajz_to_t(t, init1_rep, init2_rep, 1, -20)
+                r3_pos, r4_pos = CT.trajz_to_t(t, init3_rep, init4_rep, -1, 20)
                 unit_vector_init1_to_pt1 = (pt1 - init1) / np.linalg.norm(pt1 - init1)
                 unit_vector_init2_to_pt1 = (pt1 - init2) / np.linalg.norm(pt1 - init2)
                 unit_vector_init3_to_pt2 = (pt2 - init3) / np.linalg.norm(pt2 - init3)
@@ -438,8 +484,8 @@ def main():
                 init3_rep  = init3_rep + unit_vector_init3_to_pt2 * expand_distance
                 init4_rep  = init4_rep + unit_vector_init4_to_pt2 * expand_distance
             else:
-                r1_pos, r3_pos = CT.trajz_to_t(t, init1_rep, init3_rep, 1, 25)
-                r2_pos, r4_pos = CT.trajz_to_t(t, init2_rep, init4_rep, 1, -25)
+                r1_pos, r3_pos = CT.trajz_to_t(t, init1_rep, init3_rep, 1, 20)
+                r2_pos, r4_pos = CT.trajz_to_t(t, init2_rep, init4_rep, -1, -20)
                 unit_vector_init1_to_pt1 = (pt1 - init1) / np.linalg.norm(pt1 - init1)
                 unit_vector_init3_to_pt1 = (pt1 - init3) / np.linalg.norm(pt1 - init3)
                 unit_vector_init2_to_pt2 = (pt2 - init2) / np.linalg.norm(pt2 - init2)
@@ -543,18 +589,36 @@ def main():
             print("lifting")    
             move_smoothly_simultaneously(swarm, allcfs, end_positions, lifted_positions, 2, timeHelper, object_pt)
             print("complete lifting")
-            
+            position, rotation = get_object_position(target_object_id)
+            if position is not None:
+                object_pt = position  # Update object_pt with the new position from OptiTrack
             current_positions = [np.array(cf.position()) for cf in allcfs.crazyflies]
 
             # Move to directly above the landing pad
             print("move")
             new_positions = transition_to_above_landing_position(swarm, allcfs, current_positions, object_pt, land_position, timeHelper)
             print("move complete")
-            # Adjust altitude and initiate landing
-            print("land")
-            adjust_altitude_and_land(swarm, allcfs, new_positions, land_position, timeHelper)
 
-            print("landing completed.")
+            for layer in range(currentLayer, 0, -1):
+    
+                print(f"Resolving hitch for layer {layer}")
+                
+                if layer % 2 == 1:
+                    # Odd Layer: Swap Drone 1 ↔ Drone 2 and Drone 3 ↔ Drone 4
+                    print(f"Odd Layer {layer}: Swapping Drone 1 ↔ Drone 2 and Drone 3 ↔ Drone 4")
+                    swap_drones_counterclockwise(allcfs.crazyflies[0], allcfs.crazyflies[1], timeHelper, swap_time=2)
+                    swap_drones_counterclockwise(allcfs.crazyflies[2], allcfs.crazyflies[3], timeHelper, swap_time=2)
+                else:
+                    # Even Layer: Swap Drone 1 ↔ Drone 3 and Drone 2 ↔ Drone 4
+                    print(f"Even Layer {layer}: Swapping Drone 1 ↔ Drone 3 and Drone 2 ↔ Drone 4")
+                    swap_drones_counterclockwise(allcfs.crazyflies[0], allcfs.crazyflies[2], timeHelper, swap_time=2)
+                    swap_drones_counterclockwise(allcfs.crazyflies[1], allcfs.crazyflies[3], timeHelper, swap_time=2)
+                
+            # Adjust altitude and initiate landing
+            # print("land")
+            # adjust_altitude_and_land(swarm, allcfs, new_positions, land_position, timeHelper)
+
+            # print("landing completed.")
 
         # Move to the next layer   
         # 

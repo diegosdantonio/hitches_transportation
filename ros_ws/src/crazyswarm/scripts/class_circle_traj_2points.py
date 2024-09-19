@@ -125,7 +125,7 @@ class Collinear_to_traj:
 
         # Major and minor axes lengths
         major_axis_length = np.linalg.norm(major_vector) / 2
-        minor_axis_length = major_axis_length / 2.5
+        minor_axis_length = major_axis_length / 2
 
         # Normalize major axis vector
         major_vector_normalized = major_vector / np.linalg.norm(major_vector)

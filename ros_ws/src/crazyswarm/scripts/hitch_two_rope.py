@@ -11,7 +11,7 @@ sys.path.append('/home/swarmslab/crazyswarm/ros_ws/src/crazyswarm/scripts/optitr
 from optitrack_natnet.NatNetClient import NatNetClient
 from optitrack_natnet.util import quaternion_to_euler
 
-clientAddress = "192.168.0.24" #"192.168.0.59"
+clientAddress = "192.168.0.64" #"192.168.0.59"
 optitrackServerAddress = "192.168.0.4"
 
 objects = {}

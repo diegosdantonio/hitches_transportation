@@ -15,7 +15,7 @@ from optitrack_natnet.util import quaternion_to_euler
 INITIAL_HEIGHT = 0.7   # Hover height for drones
 SQUARE_SIDE = 1.5      # Length of the side of the square around the object
 LIFT_HEIGHT = 0.5      # Height difference for the lift-up behavior
-SWAP_DURATION = 6.0    # Duration for drone swaps
+SWAP_DURATION = 7.0    # Duration for drone swaps
 LAND_DURATION = 7.0    # Duration for landing drones
 currentLayer = 3       # Start with the third layer
 
@@ -28,47 +28,41 @@ object_rotations = {}
 
 
 
-
 def move_smoothly_simultaneously(swarm, allcfs, start_positions, end_positions, duration, timeHelper, object_pt):
-    """
-    Function to smoothly move all drones from start_positions to end_positions,
-    adjusting their yaw to face the object point and handling emergency landings.
-    """
     steps = int(duration * 100)  # 100 steps per second
-    time_step = duration / steps  # Calculate the time for each step
+    time_step = duration / steps  # Time for each step
 
-    # Convert start_positions and end_positions to NumPy arrays
+    # Convert positions to NumPy arrays for calculations
     start_positions = [np.array(pos) for pos in start_positions]
     end_positions = [np.array(pos) for pos in end_positions]
 
     for step in range(steps):
         alpha = step / float(steps)
         for i, cf in enumerate(allcfs.crazyflies):
-            # Interpolate the position using NumPy arrays
+            # Interpolate current position smoothly
             current_pos = (1 - alpha) * start_positions[i] + alpha * end_positions[i]
             
+            # Maintain altitude to avoid drops
+            current_pos[2] = max(current_pos[2], INITIAL_HEIGHT)
+
             # Calculate yaw angle toward the object point
             yaw_angle = np.arctan2(object_pt[1] - current_pos[1], object_pt[0] - current_pos[0])
-            
-            # Move the drone to the current position with the calculated yaw
+
+            # Move drone to current interpolated position
             cf.cmdPosition(current_pos, yaw=yaw_angle)
             
-            # Emergency button press check
+            # Check for emergency stop
             if swarm.input.checkIfAnyButtonIsPressed():
                 print("Emergency landing initiated")
-                
-                # Command all drones to land
                 allcfs.land(targetHeight=0.01, duration=10)
                 timeHelper.sleep(10)
-                
-                # Send emergency stop to all drones
                 for cf in allcfs.crazyflies:
                     cf.emergency()
                     timeHelper.sleep(1)
-                return  # Exit the function completely after emergency landing
+                return  # Exit if emergency stop is triggered
 
-        # Sleep for the calculated time step to maintain smooth motion
-        timeHelper.sleep(time_step)
+        timeHelper.sleep(time_step)  # Consistent timing for each step
+
 
 def calculate_positions_around_object(num_drones, object_pt, radius):
     """
@@ -149,50 +143,58 @@ def move_to_circular_formation(swarm, allcfs, timeHelper, object_pt, radius):
     
     # Move smoothly to the assigned positions
     move_smoothly_simultaneously(swarm, allcfs, start_positions, target_positions, SWAP_DURATION, timeHelper, object_pt)
+def swap_drones_counterclockwise(allcfs, drone1, drone2, timeHelper, duration, object_pt):
+    # Get starting positions for all drones
+    start_positions = [np.array(cf.position()) for cf in allcfs.crazyflies]
+    
+    # Find the indices of the two drones in the allcfs.crazyflies list
+    drone1_index = allcfs.crazyflies.index(drone1)
+    drone2_index = allcfs.crazyflies.index(drone2)
+    
+    start_pos_1 = start_positions[drone1_index]
+    start_pos_2 = start_positions[drone2_index]
 
-def swap_drones_counterclockwise(drone1, drone2, timeHelper, duration, object_pt):
-    """
-    Function to smoothly swap two drones along a counterclockwise circular path.
-    """
-    # Get the start positions of the two drones
-    start_pos_1 = np.array(drone1.position())
-    start_pos_2 = np.array(drone2.position())
-    
-    # Calculate the midpoint between the two drones (center of the circle)
-    midpoint = (start_pos_1 + start_pos_2) / 2
-    
-    # Calculate vectors from the midpoint to the drones
+    midpoint = (start_pos_1 + start_pos_2) / 2  # Calculate circle center point
     vec1 = start_pos_1 - midpoint
     vec2 = start_pos_2 - midpoint
-    
-    # Number of steps for smooth movement (100 steps per second)
-    steps = int(duration * 100)
-    
+
+    steps = int(duration * 100)  # Set timing steps for 100 Hz update frequency
     for step in range(steps):
         alpha = step / float(steps)
-        theta = 2 * alpha * np.pi  # 180 degrees in radians
-        
-        # Create the rotation matrix for counterclockwise rotation
+        theta = alpha * np.pi  # 180 degrees in radians
+
+        # Calculate rotation matrix for smooth counterclockwise motion
         R = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
         
-        # Apply the rotation to the vectors (2D rotation in the x-y plane)
+        # Rotate vectors to get new positions around the midpoint
         new_vec1 = np.dot(R, vec1[:2])
         new_vec2 = np.dot(R, vec2[:2])
-        
-        # Compute the new positions by adding the rotated vectors to the midpoint
-        new_pos_1 = midpoint[:2] + new_vec1
-        new_pos_2 = midpoint[:2] + new_vec2
-        
-        # Retain the original z-coordinate (altitude)
-        new_pos_1 = np.append(new_pos_1, start_pos_1[2])
-        new_pos_2 = np.append(new_pos_2, start_pos_2[2])
-        
-        # Command the drones to move to their new positions
-        drone1.cmdPosition(new_pos_1)
-        drone2.cmdPosition(new_pos_2)
-        
-        # Wait for smooth transition
-        timeHelper.sleep(0.01)
+
+        # Construct new positions while maintaining altitude
+        new_pos_1 = np.append(midpoint[:2] + new_vec1, max(start_pos_1[2], INITIAL_HEIGHT))
+        new_pos_2 = np.append(midpoint[:2] + new_vec2, max(start_pos_2[2], INITIAL_HEIGHT))
+
+        # Command all drones, keeping non-swapped drones at their current positions
+        for i, cf in enumerate(allcfs.crazyflies):
+            if swarm.input.checkIfAnyButtonIsPressed():
+                print("Emergency landing initiated")
+                allcfs.land(targetHeight=0.01, duration=10)
+                timeHelper.sleep(10)
+                for cf in allcfs.crazyflies:
+                    cf.emergency()
+                    timeHelper.sleep(1)
+                return  # Exit if emergency stop is triggered
+
+            if i == drone1_index:
+                cf.cmdPosition(new_pos_1)
+            elif i == drone2_index:
+                cf.cmdPosition(new_pos_2)
+            else:
+                # Hold position for non-swapping drones
+                cf.cmdPosition(start_positions[i])
+
+        timeHelper.sleep(0.01)  # Ensure timing consistency for each iteration
+
 
 def receive_rigid_body_frame(id, position, rotation_quaternion):
     global objects, object_rotations
@@ -251,9 +253,11 @@ if __name__ == "__main__":
     allcfs.takeoff(targetHeight=INITIAL_HEIGHT, duration=5.0)
     timeHelper.sleep(5.0)
 
-    # Move drones into a circular formation around the object
-    move_to_circular_formation(swarm, allcfs, timeHelper, position, SQUARE_SIDE / 2)
+    # # Move drones into a circular formation around the object
+    # move_to_circular_formation(swarm, allcfs, timeHelper, position, SQUARE_SIDE / 2)
     
+
+
     # Use a for loop to resolve hitch starting from currentLayer = 3 down to 1
     for layer in range(currentLayer, 0, -1):
         print(f"Resolving hitch for layer {layer}")
@@ -261,13 +265,13 @@ if __name__ == "__main__":
         if layer % 2 == 1:
             # Odd Layer: Swap Drone 1 ↔ Drone 2 and Drone 3 ↔ Drone 4
             print(f"Odd Layer {layer}: Swapping Drone 1 ↔ Drone 2 and Drone 3 ↔ Drone 4")
-            swap_drones_counterclockwise(allcfs.crazyflies[0], allcfs.crazyflies[1], timeHelper, SWAP_DURATION, position)
-            swap_drones_counterclockwise(allcfs.crazyflies[2], allcfs.crazyflies[3], timeHelper, SWAP_DURATION, position)
+            swap_drones_counterclockwise(allcfs, allcfs.crazyflies[0], allcfs.crazyflies[1], timeHelper, SWAP_DURATION, position)
+            swap_drones_counterclockwise(allcfs, allcfs.crazyflies[2], allcfs.crazyflies[3], timeHelper, SWAP_DURATION, position)
         else:
             # Even Layer: Swap Drone 1 ↔ Drone 3 and Drone 2 ↔ Drone 4
             print(f"Even Layer {layer}: Swapping Drone 1 ↔ Drone 3 and Drone 2 ↔ Drone 4")
-            swap_drones_counterclockwise(allcfs.crazyflies[0], allcfs.crazyflies[2], timeHelper, SWAP_DURATION, position)
-            swap_drones_counterclockwise(allcfs.crazyflies[1], allcfs.crazyflies[3], timeHelper, SWAP_DURATION, position)
+            swap_drones_counterclockwise(allcfs, allcfs.crazyflies[0], allcfs.crazyflies[2], timeHelper, SWAP_DURATION, position)
+            swap_drones_counterclockwise(allcfs, allcfs.crazyflies[1], allcfs.crazyflies[3], timeHelper, SWAP_DURATION, position)
     
     # Wait a bit after resolving all layers to observe results
     timeHelper.sleep(2.0)
